@@ -9,7 +9,7 @@ Testing so far has been run on a linux system with a RTX 8000 48GB VRAM graphics
 ## Setup
 1. Clone the repo
 2. Create a Conda enviroment
-3. Install the requirements.txt from /landmark-attention-qlora and /landmark-attention-qlora/llama (I have not rebuilt it yet to make sure this is functioning as expected I just got all of the requirements from landmark attention and qlora to get it working)
+3. Install the requirements.txt from /landmark-attention-qlora/llama
 4. Train a model. The model name output dir, and cache will need to be updated to your local directories
 
 Configuration notes:
@@ -19,19 +19,19 @@ If you are running on a newer cloud GPU, you will want to add --bfloat16 --tf32 
 ```
 or
 ```
-python3 train-qlora.py  \
-    --model_name_or_path /home/toast/models/wizardLM-7B-HF \
-    --output_dir /home/toast/models/output  \
-    --cache_dir /home/toast/hf-cache/ \
-    --num_train_epochs 1  \
-    --per_device_train_batch_size 1     \
-    --gradient_accumulation_steps 16     \
-    --learning_rate 2e-5     \
-    --weight_decay 0.1     \
-    --warmup_ratio 0.03     \
-    --lr_scheduler_type "cosine"     \
-    --logging_steps 1     \
-    --max_steps 10 \
+python3 train-qlora.py  
+    --model_name_or_path /home/toast/models/wizardLM-7B-HF 
+    --output_dir /home/toast/models/output  
+    --cache_dir /home/toast/hf-cache/ 
+    --num_train_epochs 1  
+    --per_device_train_batch_size 1     
+    --gradient_accumulation_steps 16     
+    --learning_rate 2e-5     
+    --weight_decay 0.1     
+    --warmup_ratio 0.03     
+    --lr_scheduler_type "cosine"     
+    --logging_steps 1     
+    --max_steps 1000 
 ```
 
 
