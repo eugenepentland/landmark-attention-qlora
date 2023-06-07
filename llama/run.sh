@@ -1,0 +1,13 @@
+python3 train-qlora.py  \
+    --model_name_or_path /home/toast/models/wizardLM-7B-HF \
+    --output_dir /home/toast/models/output  \
+    --cache_dir /home/toast/hf-cache/ \
+    --num_train_epochs 1  \
+    --per_device_train_batch_size 1     \
+    --gradient_accumulation_steps 16     \
+    --learning_rate 2e-5     \
+    --weight_decay 0.1     \
+    --warmup_ratio 0.03     \
+    --lr_scheduler_type "cosine"     \
+    --logging_steps 1     \
+    --max_steps 10 \

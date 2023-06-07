@@ -9,3 +9,8 @@ tokenizers>=0.13.3
 wandb
 accelerate
 datasets
+bitsandbytes==0.39.0
+peft @ git+https://github.com/huggingface/peft.git
+einops==0.6.1
+evaluate==0.4.0
+scikit-learn==1.2.2
