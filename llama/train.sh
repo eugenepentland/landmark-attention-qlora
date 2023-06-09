@@ -2,7 +2,7 @@ python3 train_qlora.py  \
     --model_name_or_path <path_to_llama_base_model> \
     --output_dir <output_directory> \
     --cache_dir <cache_directory> \
-    --per_device_train_batch_size 1     \
+    --per_device_train_batch_size 2     \
     --gradient_accumulation_steps 16     \
     --learning_rate 2e-5     \
     --weight_decay 0.1     \
@@ -10,3 +10,5 @@ python3 train_qlora.py  \
     --lr_scheduler_type "cosine"     \
     --logging_steps 1     \
     --max_steps 10000 \
+    --bf16 False \
+    --tf32 False \

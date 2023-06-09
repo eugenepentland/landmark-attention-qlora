@@ -821,18 +821,20 @@ class LlamaModel(LlamaPreTrainedModel):
                 def create_custom_forward(module):
                     def custom_forward(*inputs):
                         # None for past_key_value
-                        return module(*inputs, output_attentions, None)
+                        return module(*inputs)
 
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(decoder_layer),
-                    hidden_states,
-                    attention_mask,
-                    position_ids,
-                    None,
-                    is_mem,
-                    last_section_mask
+                     create_custom_forward(decoder_layer),
+                     hidden_states,
+                     attention_mask,
+                     position_ids,
+                     None,
+                     output_attentions,
+                     None,
+                     is_mem,
+                     last_section_mask,
                 )
             else:
                 layer_outputs = decoder_layer(
@@ -974,7 +976,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
                 return_dict=return_dict,
                 offload_cache_to_cpu=offload_cache_to_cpu,
             )
-            past_key_values = outputs[1]
+            past_key_values = outputs.past_key_values
             if last_logits is not None:
                 last_logits = torch.cat((last_logits, outputs[0]), dim=-2)
             last_logits = outputs[0]
