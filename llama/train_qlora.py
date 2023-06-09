@@ -36,7 +36,7 @@ import logging
 from dataclasses import dataclass, field
 from functools import partial
 from typing import Dict, Optional, Sequence
-
+from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 import torch
 import transformers
 from torch.utils.data import Dataset
@@ -347,7 +347,7 @@ class ModelArguments:
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
     cache_dir: Optional[str] = field(default=None)
-    optim: str = field(default="adamw_torch")
+    optim: str = field(default="paged_adamw_32bit")
     model_max_length: int = field(
         default=512,
         metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},
@@ -388,15 +388,20 @@ class TrainingArguments(transformers.TrainingArguments):
         default=0.0,
         metadata={"help":"Lora dropout."}
     )
-    #per_device_train_batch_size: int = field(default=1, metadata={"help": 'The training batch size per GPU. Increase for better speed.'})
+    per_device_train_batch_size: int = field(default=2, metadata={"help": 'The training batch size per GPU. Increase for better speed.'})
     gradient_accumulation_steps: int = field(default=4, metadata={"help": 'How many gradients to accumulate before to perform an optimizer step'})
-    #max_grad_norm: float = field(default=0.3, metadata={"help": 'Gradient clipping max norm. This is tuned and works well for all models tested.'})
+    max_grad_norm: float = field(default=0.3, metadata={"help": 'Gradient clipping max norm. This is tuned and works well for all models tested.'})
     gradient_checkpointing: bool = field(default=False, metadata={"help": 'Use gradient checkpointing. You want to use this.'})
+    logging_steps: int = field(default=10, metadata={"help": 'The frequency of update steps after which to log the loss'})
+    group_by_length: bool = field(default=True, metadata={"help": 'Group sequences into batches with same length. Saves memory and speeds up training considerably.'})
+    save_strategy: str = field(default='steps', metadata={"help": 'When to save checkpoints'})
+    save_steps: int = field(default=250, metadata={"help": 'How often to save a model'})
+    save_total_limit: int = field(default=40, metadata={"help": 'How many checkpoints to save before the oldest is overwritten'})
     #do_train: bool = field(default=True, metadata={"help": 'To train or not to train, that is the question?'})
     #lr_scheduler_type: str = field(default='constant', metadata={"help": 'Learning rate schedule. Constant a bit better than cosine, and has advantage for analysis'})
     #warmup_ratio: float = field(default=0.03, metadata={"help": 'Fraction of steps to do a warmup for'})
     #logging_steps: int = field(default=10, metadata={"help": 'The frequency of update steps after which to log the loss'})
-    #group_by_length: bool = field(default=True, metadata={"help": 'Group sequences into batches with same length. Saves memory and speeds up training considerably.'})
+    group_by_length: bool = field(default=True, metadata={"help": 'Group sequences into batches with same length. Saves memory and speeds up training considerably.'})
     #save_strategy: str = field(default='steps', metadata={"help": 'When to save checkpoints'})
     #save_steps: int = field(default=250, metadata={"help": 'How often to save a model'})
     #save_total_limit: int = field(default=40, metadata={"help": 'How many checkpoints to save before the oldest is overwritten'})
@@ -407,7 +412,7 @@ class TrainingArguments(transformers.TrainingArguments):
 def get_accelerate_model(args, checkpoint_dir):
 
     n_gpus = torch.cuda.device_count()
-    max_memory = f'{4800}MB'
+    max_memory = f'{80000}MB'
     max_memory = {i: max_memory for i in range(n_gpus)}
     device_map = "auto"
 
@@ -585,6 +590,34 @@ def get_last_checkpoint(checkpoint_dir):
         return checkpoint_dir, is_completed # checkpoint found!
     return None, False # first training
 
+class SavePeftModelCallback(transformers.TrainerCallback):
+    def save_model(self, args, state, kwargs):
+        print('Saving PEFT checkpoint...')
+        if state.best_model_checkpoint is not None:
+            checkpoint_folder = os.path.join(state.best_model_checkpoint, "adapter_model")
+        else:
+            checkpoint_folder = os.path.join(args.output_dir, f"{PREFIX_CHECKPOINT_DIR}-{state.global_step}")
+
+        peft_model_path = os.path.join(checkpoint_folder, "adapter_model")
+        kwargs["model"].save_pretrained(peft_model_path)
+
+        pytorch_model_path = os.path.join(checkpoint_folder, "pytorch_model.bin")
+        if os.path.exists(pytorch_model_path):
+            os.remove(pytorch_model_path)
+
+    def on_save(self, args, state, control, **kwargs):
+        self.save_model(args, state, kwargs)
+        return control
+
+    def on_train_end(self, args, state, control, **kwargs):
+        def touch(fname, times=None):
+            with open(fname, 'a'):
+                os.utime(fname, times)
+
+        touch(join(args.output_dir, 'completed'))
+        self.save_model(args, state, kwargs)
+
+
 def train():
     parser = transformers.HfArgumentParser((ModelArguments, TrainingArguments))
     model_args, training_args = parser.parse_args_into_dataclasses()
@@ -627,7 +660,7 @@ def train():
     rank = int(os.environ.get('RANK', -1))
     if rank > 0:
         barrier()
-    #dataset = load_dataset("togethercomputer/RedPajama-Data-1T-Sample", cache_dir=training_args.cache_dir)
+
     dataset = load_dataset("wikitext", 'wikitext-103-v1', cache_dir=training_args.cache_dir)
     
     dataset = dataset.map(partial(tokenize_fn,tokenizer),batched=True, num_proc=32, remove_columns=["text"])
@@ -649,11 +682,9 @@ def train():
         train_dataset=dataset["train"],
         eval_dataset=None,
         data_collator=data_collator)
-    
+    trainer.add_callback(SavePeftModelCallback)
     trainer.train()
     trainer.save_state()
-    trainer.save_model(output_dir=training_args.output_dir)
-
 
 if __name__ == "__main__":
     train()

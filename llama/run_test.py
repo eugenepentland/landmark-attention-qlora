@@ -11,60 +11,63 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import transformers
 
-llama_weights_7b_base = "/llama_weights/7B_hf/"
-llama_weights_7b_tuned = "/llama-redpajama-mem-15000-with-mem/"
+llama_qlora_adapter_model = "<path_to_adapter"
 cache_path = "/hf-cache/"
 
-def make_llama_base_pipe():
+def smart_tokenizer_and_embedding_resize(
+    special_tokens_dict,
+    tokenizer: transformers.PreTrainedTokenizer,
+    model: transformers.PreTrainedModel,
+):
+    """Resize tokenizer and embedding.
 
-    from transformers import pipeline
+    Note: This is the unoptimized version that may make your embedding size not be divisible by 64.
+    """
+    num_new_tokens = tokenizer.add_special_tokens(special_tokens_dict)
+    model.resize_token_embeddings(len(tokenizer))
 
-    from transformers.models.llama import LlamaForCausalLM
+    if num_new_tokens > 0:
+        input_embeddings = model.get_input_embeddings().weight.data
+        output_embeddings = model.get_output_embeddings().weight.data
 
-    llama_base = LlamaForCausalLM.from_pretrained(
-        llama_weights_7b_base,
-        cache_dir=cache_path,
-    )
+        input_embeddings_avg = input_embeddings[:-num_new_tokens].mean(dim=0, keepdim=True)
+        output_embeddings_avg = output_embeddings[:-num_new_tokens].mean(dim=0, keepdim=True)
 
-    llama_base = llama_base.to('cuda:0')
+        input_embeddings[-num_new_tokens:] = input_embeddings_avg
+        output_embeddings[-num_new_tokens:] = output_embeddings_avg
 
-    import transformers
-    
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        llama_weights_7b_base,
-        cache_dir=cache_path,
-        model_max_length=1024,
-        padding_side="right",
-        use_fast=False,
-    )
-
-    llama_base_pipe = pipeline("text-generation", model=llama_base, tokenizer=tokenizer, device=llama_base.device)
-    return llama_base_pipe
-
-
-
-llama_base_pipe = make_llama_base_pipe()
 
 def make_llama_mem_pipe():
     from llama_mem import LlamaForCausalLM
 
     model = LlamaForCausalLM.from_pretrained(
-        llama_weights_7b_tuned,
+        llama_qlora_adapter_model,
         cache_dir=cache_path,
     )
 
-    model.to('cuda:1')
+    model.to('cuda:0')
 
     import transformers
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(
-            llama_weights_7b_tuned,
+            llama_qlora_adapter_model,
             cache_dir=cache_path,
             model_max_length=512,
             padding_side="right",
             use_fast=False,
         )
+    mem_token = "<landmark>"
+    special_tokens_dict = dict()
+    special_tokens_dict["additional_special_tokens"] = [mem_token]
+
+    smart_tokenizer_and_embedding_resize(
+        special_tokens_dict=special_tokens_dict,
+        tokenizer=tokenizer,
+        model=model,
+    )
+
     from transformers import pipeline
     llama_mem_pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, device=model.device)
     return llama_mem_pipe
@@ -77,7 +80,7 @@ llama_mem_pipe.model.set_mem_id(mem_id)
 llama_mem_pipe.model.set_mem_cache_args(max_seq_len=255, mem_freq=50, top_k=5, max_cache_size=None)
 
 
-pipes = {"base": llama_base_pipe, "mem": llama_mem_pipe}
+pipes = {"mem": llama_mem_pipe}
 
 import torch
 
@@ -123,9 +126,9 @@ def test_model(prompt_text, pass_key, model_name):
     return pass_key
 
 
-n_values = [0, 100, 500, 1000, 5000, 8000, 10000, 12000, 14000, 18000, 20000, 25000, 38000]
-num_tests = 50
-models = ["base", "mem"]
+n_values = [1000, 5000, 8000, 10000, 12000, 14000, 18000, 20000, 25000, 38000]
+num_tests = 5
+models = ["mem"]
 accuracies = {x: [] for x in models}
 individual_results = {x: [] for x in models}
 

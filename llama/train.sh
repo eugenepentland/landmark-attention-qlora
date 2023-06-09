@@ -1,7 +1,7 @@
 python3 train-qlora.py  \
-    --model_name_or_path /home/toast/models/wizardLM-7B-HF \
-    --output_dir /home/toast/models/output  \
-    --cache_dir /home/toast/hf-cache/ \
+    --model_name_or_path <path_to_llama_base_model> \
+    --output_dir <output_directory> \
+    --cache_dir <cache_directory> \
     --num_train_epochs 1  \
     --per_device_train_batch_size 1     \
     --gradient_accumulation_steps 16     \
