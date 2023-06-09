@@ -2,28 +2,30 @@
 
 This is an experiemental repo attempting to create a landmark attention model using QLoRA.
 
-**This repo currently IS NOT complete and still a work in progress.**
+**The concept has been validated, but further training is still required. The models do not work in oobooga yet. Evaluation must be run in the run_test.py file until the remote code has been written to allow it work in oobooga.**
 
-Testing so far has been run on a linux system with a RTX 8000 48GB VRAM graphics card. We have been able to train a 3B and 7B model using 20GB and 29GB of VRAM respectivley. The output models have not been tested yet.
+A 7B model has been trained using 29GB of VRAM, for 500 steps/3 hours. It was functional all the way up to 7k context, but the accuracy was only about 60%. Further training should improve these results. Evaluation is still in progress and new models are currently being trained.
+
+Testing so far has been run on a linux system with a RTX Quadro 8000 48GB VRAM graphics card.
 
 ## Setup
-1. Clone the repo
-2. Create a Conda enviroment
-3. Install the requirements.txt from /landmark-attention-qlora/llama
-4. Train a model. The model name output dir, and cache will need to be updated to your local directories
+1. Clone the repo: git clone https://github.com/eugenepentland/landmark-attention-qlora.git
+2. Create a Conda enviroment: conda create -n landmark 
+3. Install the requirements.txt: cd /landmark-attention-qlora/llama; pip install -r requirements.txt
+4. Train a model using train_qlora.py
+5. Merge with the original weights using merge_peft.py
+6. Evaluate using run_test.py
 
+
+## Training
 Configuration notes:
 If you are running on a newer cloud GPU, you will want to add --bfloat16 --tf32 True when you run the training for better performance.
+
 ```
-/llama/run.sh
-```
-or
-```
-python3 train-qlora.py  
-    --model_name_or_path /home/toast/models/wizardLM-7B-HF 
-    --output_dir /home/toast/models/output  
-    --cache_dir /home/toast/hf-cache/ 
-    --num_train_epochs 1  
+python3 train_qlora.py  
+    --model_name_or_path <path_to_llama_base_model> 
+    --output_dir <output_directory> 
+    --cache_dir <cache_directory> 
     --per_device_train_batch_size 1     
     --gradient_accumulation_steps 16     
     --learning_rate 2e-5     
@@ -31,10 +33,16 @@ python3 train-qlora.py
     --warmup_ratio 0.03     
     --lr_scheduler_type "cosine"     
     --logging_steps 1     
-    --max_steps 1000 
+    --max_steps 10000 
 ```
-
-
+## Merging
+Merging typically provides faster inference times than using the QLoRA seperatley.
+```
+python3 merge_peft.py   
+    --base_model_name_or_path <path_to_llama_model> 
+    --peft_model_path <path_to_QLoRA_adapter> 
+    --output_dir <output_path> 
+```
 ## How it was made
 The original landmark attention repo was taken and how the model gets loaded was replaced with how QLoRA loads a model. QLoRA uses AutoModelForCasualLM and that needed to be replaced with landmarks custom LlamaForCausalLM.
 

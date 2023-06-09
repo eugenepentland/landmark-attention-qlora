@@ -1,8 +1,7 @@
-python3 train-qlora.py  \
+python3 train_qlora.py  \
     --model_name_or_path <path_to_llama_base_model> \
     --output_dir <output_directory> \
     --cache_dir <cache_directory> \
-    --num_train_epochs 1  \
     --per_device_train_batch_size 1     \
     --gradient_accumulation_steps 16     \
     --learning_rate 2e-5     \
@@ -10,4 +9,4 @@ python3 train-qlora.py  \
     --warmup_ratio 0.03     \
     --lr_scheduler_type "cosine"     \
     --logging_steps 1     \
-    --max_steps 10 \
+    --max_steps 10000 \
