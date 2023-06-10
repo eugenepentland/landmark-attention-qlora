@@ -347,7 +347,7 @@ class ModelArguments:
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
     cache_dir: Optional[str] = field(default=None)
-    optim: str = field(default="paged_adamw_32bit")
+    optim: str = field(default="adamw_torch")
     model_max_length: int = field(
         default=512,
         metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},
@@ -361,7 +361,7 @@ class TrainingArguments(transformers.TrainingArguments):
         metadata={"help": "Finetune the entire model without adapters."}
     )
     adam8bit: bool = field(
-        default=True,
+        default=False,
         metadata={"help": "Use 8-bit adam."}
     )
     double_quant: bool = field(
@@ -395,14 +395,11 @@ class TrainingArguments(transformers.TrainingArguments):
     logging_steps: int = field(default=10, metadata={"help": 'The frequency of update steps after which to log the loss'})
     group_by_length: bool = field(default=True, metadata={"help": 'Group sequences into batches with same length. Saves memory and speeds up training considerably.'})
     save_strategy: str = field(default='steps', metadata={"help": 'When to save checkpoints'})
-    save_steps: int = field(default=250, metadata={"help": 'How often to save a model'})
+    save_steps: int = field(default=50, metadata={"help": 'How often to save a model'})
     save_total_limit: int = field(default=40, metadata={"help": 'How many checkpoints to save before the oldest is overwritten'})
-    #do_train: bool = field(default=True, metadata={"help": 'To train or not to train, that is the question?'})
-    #lr_scheduler_type: str = field(default='constant', metadata={"help": 'Learning rate schedule. Constant a bit better than cosine, and has advantage for analysis'})
+    lr_scheduler_type: str = field(default='constant', metadata={"help": 'Learning rate schedule. Constant a bit better than cosine, and has advantage for analysis'})
     #warmup_ratio: float = field(default=0.03, metadata={"help": 'Fraction of steps to do a warmup for'})
     #logging_steps: int = field(default=10, metadata={"help": 'The frequency of update steps after which to log the loss'})
-    group_by_length: bool = field(default=True, metadata={"help": 'Group sequences into batches with same length. Saves memory and speeds up training considerably.'})
-    #save_strategy: str = field(default='steps', metadata={"help": 'When to save checkpoints'})
     #save_steps: int = field(default=250, metadata={"help": 'How often to save a model'})
     #save_total_limit: int = field(default=40, metadata={"help": 'How many checkpoints to save before the oldest is overwritten'})
 
@@ -438,6 +435,7 @@ def get_accelerate_model(args, checkpoint_dir):
             load_in_4bit=args.bits == 4,
             load_in_8bit=args.bits == 8,
             llm_int8_threshold=6.0,
+            load_in_8bit_fp32_cpu_offload=False,
             llm_int8_has_fp16_weight=False,
             bnb_4bit_compute_dtype=compute_dtype,
             bnb_4bit_use_double_quant=args.double_quant,
@@ -469,6 +467,7 @@ def get_accelerate_model(args, checkpoint_dir):
             model = PeftModel.from_pretrained(model, join(checkpoint_dir, 'adapter_model'), is_trainable=True)
         else:
             print(f'adding LoRA modules...')
+            print(model.named_modules())
             modules = find_all_linear_names(args, model)
             config = LoraConfig(
                 r=args.lora_r,
@@ -476,6 +475,7 @@ def get_accelerate_model(args, checkpoint_dir):
                 target_modules=modules,
                 lora_dropout=args.lora_dropout,
                 bias="none",
+                #modules_to_save=['lm_head, embed_tokens'],
                 task_type="CAUSAL_LM",
             )
             model = get_peft_model(model, config)
@@ -661,7 +661,7 @@ def train():
     if rank > 0:
         barrier()
 
-    dataset = load_dataset("togethercomputer/RedPajama-Data-1T-Sample", cache_dir=training_args.cache_dir)
+    dataset = load_dataset("togethercomputer/RedPajama-Data-1T-Sample", data_files=["https://data.together.xyz/redpajama-data-1T/v1.0.0/arxiv/arxiv_023827cd-7ee8-42e6-aa7b-661731f4c70f.jsonl"], cache_dir=training_args.cache_dir)
     
     dataset = dataset.map(partial(tokenize_fn,tokenizer),batched=True, num_proc=32, remove_columns=["text", "meta"])
 
@@ -687,8 +687,6 @@ def train():
     metrics = train_result.metrics
     trainer.log_metrics("train", metrics)
     trainer.save_metrics("train", metrics)
-    trainer.train()
     trainer.save_state()
-
 if __name__ == "__main__":
     train()

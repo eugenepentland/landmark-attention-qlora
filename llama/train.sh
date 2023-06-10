@@ -1,14 +1,16 @@
-python3 train_qlora.py  \
-    --model_name_or_path <path_to_llama_base_model> \
-    --output_dir <output_directory> \
-    --cache_dir <cache_directory> \
-    --per_device_train_batch_size 2     \
-    --gradient_accumulation_steps 16     \
-    --learning_rate 2e-5     \
+python train_qlora.py  \
+    --model_name_or_path /home/ubuntu/models/wizardLM-7B-HF \
+    --output_dir /home/ubuntu/models/wizardLM-7B-HF/lora \
+    --cache_dir /home/ubuntu/hf-cache \
+    --per_device_train_batch_size 16     \
+    --gradient_accumulation_steps 8     \
+    --learning_rate 0.00015     \
     --weight_decay 0.1     \
-    --warmup_ratio 0.03     \
-    --lr_scheduler_type "cosine"     \
     --logging_steps 1     \
-    --max_steps 10000 \
-    --bf16 False \
-    --tf32 False \
+    --warmup_ratio 0.03 \
+    --max_steps 200 \
+    --bf16 True \
+    --tf32 True \
+    --group_by_length True \
+    --lora_r 64 \
+    --lora_alpha 16 \

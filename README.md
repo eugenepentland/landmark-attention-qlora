@@ -4,7 +4,7 @@ This is an experiemental repo attempting to create a landmark attention model us
 
 **The concept has been validated, but further training is still required. The models do not work in oobooga yet. Evaluation must be run in the run_test.py file until the remote code has been written to allow it work in oobooga.**
 
-A 7B model has been trained using 29GB of VRAM, for 500 steps/3 hours. It was functional all the way up to 7k context, but the accuracy was only about 60%. Further training should improve these results. Evaluation is still in progress and new models are currently being trained.
+A 7B model has been trained using 29GB of VRAM, for 200 steps in 2 hours. It was functional all the way up to 7k context, but the accuracy was only about 60%. Further training should improve these results. Evaluation is still in progress and new models are currently being trained.
 
 Testing so far has been run on a linux system with a RTX Quadro 8000 48GB VRAM graphics card.
 
@@ -18,32 +18,37 @@ Testing so far has been run on a linux system with a RTX Quadro 8000 48GB VRAM g
 
 
 ## Training
-Configuration notes:
-If you are running on a newer cloud GPU, you will want to add --bf16 True --tf32 True when you run the training for better performance.
 
 ```
-python3 train_qlora.py  
-    --model_name_or_path <path_to_llama_base_model> 
-    --output_dir <output_directory> 
-    --cache_dir <cache_directory> 
-    --per_device_train_batch_size 2     
-    --gradient_accumulation_steps 16     
-    --learning_rate 2e-5     
+python train_qlora.py  
+    --model_name_or_path /home/ubuntu/models/wizardLM-7B-HF 
+    --output_dir /home/ubuntu/models/wizardLM-7B-HF/lora 
+    --cache_dir /home/ubuntu/hf-cache 
+    --per_device_train_batch_size 16     
+    --gradient_accumulation_steps 8     
+    --learning_rate 0.00015     
     --weight_decay 0.1     
-    --warmup_ratio 0.03     
-    --lr_scheduler_type "cosine"     
     --logging_steps 1     
-    --max_steps 10000 
-    --bf16 False 
-    --tf32 False 
+    --warmup_ratio 0.03 
+    --max_steps 200 
+    --bf16 True 
+    --tf32 True 
+    --group_by_length True 
+    --lora_r 64 
+    --lora_alpha 16 
+    
+   
 ```
 ## Merging
 Merging typically provides faster inference times than using the QLoRA seperatley.
 ```
-python3 merge_peft.py   
-    --base_model_name_or_path <path_to_llama_model> 
-    --peft_model_path <path_to_QLoRA_adapter> 
-    --output_dir <output_path> 
+python merge_peft.py   
+    --base_model_name_or_path <base_model_path> 
+    --peft_model_path <QLoRA_path> 
+    --output_dir <merged_output_path> 
 ```
-## How it was made
-The original landmark attention repo was taken and how the model gets loaded was replaced with how QLoRA loads a model. QLoRA uses AutoModelForCasualLM and that needed to be replaced with landmarks custom LlamaForCausalLM.
+
+## Testing
+Currently the model can only be used with llama/run_test.py or Axolotl. Oooboga support will be coming inthe near future.
+
+python run_test.py < merged_model_path >

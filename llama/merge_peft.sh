@@ -1,4 +1,4 @@
-python3 merge_peft.py   \
-    --base_model_name_or_path <path_to_llama_model> \
-    --peft_model_path <path_to_QLoRA_adapter> \
-    --output_dir <output_path> \
+python3.11 merge_peft.py   \
+    --base_model_name_or_path /home/ubuntu/models/wizardLM-7B-HF \
+    --peft_model_path /home/ubuntu/models/wizardLM-7B-HF/lora/checkpoint-250/adapter_model \
+    --output_dir /home/ubuntu/models/wizardLM-7B-HF/merged/checkpoint-250 \
