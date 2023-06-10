@@ -1,24 +1,25 @@
 # Landmark Attention QLoRA
 
-This is an experiemental repo attempting to create a landmark attention model using QLoRA.
+Landmark Attention enables a 50x compression of an LLM's context into landmarks, making the process of selecting relevant tokens for answers more efficient, and allowing 2-16x longer context use without memory constraints. By integrating it with QLoRA, computational and training demands significantly decreased. The models were effectively trained on an H100 graphics card within 2-3 hours, at a total cost of $15.
 
-**The concept has been validated, but further training is still required. The models do not work in oobooga yet. Evaluation must be run in the run_test.py file until the remote code has been written to allow it work in oobooga.**
+![image](https://github.com/eugenepentland/landmark-attention-qlora/assets/32426720/50d36dae-3fd2-405f-9dc4-75d215f44903)
 
-A 7B model has been trained using 29GB of VRAM, for 200 steps in 2 hours. It was functional all the way up to 7k context, but the accuracy was only about 60%. Further training should improve these results. Evaluation is still in progress and new models are currently being trained.
+The following test was a needle in a haystack problem. The model is told that it will be provided a block of text, and it needs to find the pass key and tell the user what it is (llama/run_test.py). The results show that our 13B Minataur Landmark model gets comperable performance as the fully fine tuned 7B llama model.
 
-Testing so far has been run on a linux system with a RTX Quadro 8000 48GB VRAM graphics card.
+## Models
+Minotaur-13 & WizardLM-7B. Larger models will be released within the next few days.
+https://huggingface.co/eugenepentland
+
+Models ending with -Landmark-QLoRA are the adapter models only. They must be merged with the base model to be used. (/llama/merge_peft.py)
 
 ## Setup
 1. Clone the repo: git clone https://github.com/eugenepentland/landmark-attention-qlora.git
 2. Create a Conda enviroment: conda create -n landmark 
-3. Install the requirements.txt: cd /landmark-attention-qlora/llama; pip install -r requirements.txt
-4. Train a model using train_qlora.py
-5. Merge with the original weights using merge_peft.py
-6. Evaluate using run_test.py
+3. Install the requirements.txt:cd /landmark-attention-qlora/llama; pip install -r requirements.txt
 
 
-## Training
-
+## Training a new model
+Adjust the model_name_or_path, output_dir, and cache_dir.
 ```
 python train_qlora.py  
     --model_name_or_path /home/ubuntu/models/wizardLM-7B-HF 
@@ -31,8 +32,8 @@ python train_qlora.py
     --logging_steps 1     
     --warmup_ratio 0.03 
     --max_steps 200 
-    --bf16 True 
-    --tf32 True 
+    --bf16 False 
+    --tf32 False 
     --group_by_length True 
     --lora_r 64 
     --lora_alpha 16 
@@ -40,7 +41,7 @@ python train_qlora.py
    
 ```
 ## Merging
-Merging typically provides faster inference times than using the QLoRA seperatley.
+To be able to use the QLoRA, you need to merge it with the base model. This just adds more weights the base model weights. 
 ```
 python merge_peft.py   
     --base_model_name_or_path <base_model_path> 
