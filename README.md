@@ -53,3 +53,7 @@ python merge_peft.py
 The merged models can be tested using llama/run_test.py or oobooga. When using with oobooga, the --trust-remote-flag code has to be enabled for the memory to function correctly. The text UI seems to do worse than the run_test.py at remember the correct context, so the code is still being looked into to identify the issue.
 
 python /llama/run_test.py < merged_model_path >
+
+## Join our discord!
+Are you interested in evaluating models and discussing the performance of landmark? Join our discord!
+https://discord.gg/5nFSUbVxA2
