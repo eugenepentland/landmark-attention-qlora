@@ -4,6 +4,8 @@ import torch
 import transformers
 import os
 import argparse
+import shutil
+import json
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -76,6 +78,26 @@ def main():
     model.save_pretrained(f"{args.output_dir}")
     tokenizer.save_pretrained(f"{args.output_dir}")
     print(f"Model saved to {args.output_dir}")
+
+    #Adding the remote code & updating the config. This is required to get landmark working
+    landmark_config = "configuration_landmark_llama.py"
+    landmark_model = "modelling_landmark_llama.py"
+    
+    shutil.copyfile(f"./remote_code/{landmark_config}", f"{args.output_dir}/{landmark_config}")
+    shutil.copyfile(f"./remote_code/{landmark_model}", f"{args.output_dir}/{landmark_model}")
+
+    with open(f"{args.output_dir}/config.json", "r") as config_file:
+        config_dict = json.load(config_file)
+
+    config_dict["auto_map"] = {
+        "AutoConfig": "configuration_landmark_llama.LlamaConfig",
+        "AutoModel": "modelling_landmark_llama.LlamaModel",
+        "AutoModelForCausalLM": "modelling_landmark_llama.LlamaForCausalLM",
+        "AutoModelForSequenceClassification": "modelling_landmark_llama.LlamaForSequenceClassification"
+    }
+
+    with open(f"{args.output_dir}/config.json", "w") as config_file:
+        json.dump(config_dict, config_file, indent=4)
 
 if __name__ == "__main__" :
     main()

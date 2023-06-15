@@ -126,7 +126,7 @@ def test_model(prompt_text, pass_key, model_name):
     return pass_key
 
 
-n_values = [1000, 5000, 8000, 10000, 12000, 14000, 18000, 20000, 25000, 38000]
+n_values = [8000, 10000, 12000, 14000, 18000, 20000, 25000, 38000]
 num_tests = 5
 models = ["mem"]
 accuracies = {x: [] for x in models}
