@@ -6,6 +6,7 @@ transformers>=4.28.1
 torch
 sentencepiece
 tokenizers>=0.13.3
+protobuf==3.20.0
 wandb
 accelerate
 datasets
